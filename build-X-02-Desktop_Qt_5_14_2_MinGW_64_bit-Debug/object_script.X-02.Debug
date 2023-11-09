@@ -1,0 +1,14 @@
+debug/csvfilesave.o
+debug/impedancereader.o
+debug/rhsaccess.o
+debug/systemstate.o
+debug/rhsaccesssubthread.o
+debug/mwaveview.o
+debug/controlwindow.o
+debug/main.o
+debug/qrc_Resources.o
+debug/moc_impedancereader.o
+debug/moc_rhsaccess.o
+debug/moc_rhsaccesssubthread.o
+debug/moc_mwaveview.o
+debug/moc_controlwindow.o

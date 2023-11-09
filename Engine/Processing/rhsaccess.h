@@ -81,7 +81,7 @@ public:
 
         0x12,0x01,0x00,0x80,//WRITE(0,0x0112)
         0x1a,0x05,0x01,0x80,//WRITE(1,0x051a)
-        0x40,0x00,0x02,0x80,//WRITE(2,0x0040)
+        0x41,0x00,0x02,0xa0,//WRITE(2,0x0041)
         0x80,0x00,0x03,0x80,//WRITE(3,0x0080)
         0x16,0x00,0x04,0x80,//WRITE(4,0x0016)
         0x17,0x00,0x05,0x80,//WRITE(5,0x0017)
@@ -147,11 +147,11 @@ public:
 
 signals:
 
-    void WriteRHSData(QString);
+    //void WriteRHSData(QString);
+
     void ReadRHSData(QString);
 
     void CONVERTStartState(QString);
-    void CONVERTStopState(QString);
 
     void ReadRHSDataContinuous(QString);
 
@@ -160,19 +160,26 @@ public slots:
     void InitializeXMS6302(int &DeviceCount, QString &qID, bool &isSerialOpened);
 
     void SetSampleRate(QVariant);
+
     void setFPGAbit();
 
     void ResetFPGA();
+
     void InitializeRHS2116();
 
-    void CONVERTStart();
-    void CONVERTStop();
+    void convertStart();
+
+    void convertStop();
+
+    void impedanceConvertStart();
+
+    void impedanceConvertStop();
 
     void ReadFromRHSContinuous();
+
     void StopReading();
 
     void DebugFPGA();
-
 };
 
 #endif // RHSACCESS_H

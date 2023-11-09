@@ -32,7 +32,7 @@ void RHSAccess::InitializeXMS6302(int &DeviceCount, QString &qID, bool &isSerial
 
 void RHSAccess::setFPGAbit()
 {
-    this->ConfigureFPGA("../FPGA-bitfiles/32_ch.bit");
+    this->ConfigureFPGA("../FPGA-bitfiles/test_01.bit");
 }
 void RHSAccess::ResetFPGA()
 {
@@ -51,14 +51,17 @@ void RHSAccess::InitializeRHS2116()
 
     this->OpenBySerial(ID);
     isSerialOpened = this->IsOpen();
+
     writeState = this->WriteToBlockPipeIn(epAddr_bpic0, 256, length, rhscmd_initialize, &wrcount);
 
     if (writeState == 0)
     {
         qbdatabuf = QByteArray((char *)rhscmd_initialize, sizeof(rhscmd_initialize));
         qsdatabuf = qbdatabuf.toHex();
+        qDebug() << "qsdatabuf"<<qsdatabuf;
         qswriteState.setNum(writeState);
-        emit WriteRHSData(qsdatabuf);
+
+        //emit WriteRHSData(qsdatabuf);
     }
 }
 
@@ -115,30 +118,39 @@ void RHSAccess::QSTring2HEX(QString src, unsigned char *des)
     }
 }
 
-void RHSAccess::CONVERTStart()
+void RHSAccess::convertStart()
 {
     int epAddr_wi00 = 0x00;
     int CONVERTStartWireSig = 0x00000001;
-    this->SetWireInValue(epAddr_wi00, CONVERTStartWireSig);
+    int Convertstate;
+    Convertstate = this->SetWireInValue(epAddr_wi00, CONVERTStartWireSig);
+    qDebug() << "Convertstate" << Convertstate;
     this->UpdateWireIns();
 }
 
-void RHSAccess::CONVERTStop()
+void RHSAccess::impedanceConvertStart()
 {
-    int epAddr_wi00 = 0x00; int CONVERTStopWireSig = 0x00000000;
-    int CONVERTStopWireUpdate;
-    QString qCONVERTStopWireUpdate;
+    int epAddr_wi02 = 0x02;
+    int CONVERTStartWireSig = 0x00000001;
+    int impedanceConvertstate;
+    impedanceConvertstate = this->SetWireInValue(epAddr_wi02, CONVERTStartWireSig);
+    qDebug() << "impedanceConvertstate" << impedanceConvertstate;
+    this->UpdateWireIns();
+}
 
+void RHSAccess::convertStop()
+{
+    int epAddr_wi00 = 0x00;
+    int CONVERTStopWireSig = 0x00000000;
     this->SetWireInValue(epAddr_wi00, CONVERTStopWireSig);
-    CONVERTStopWireUpdate = this->UpdateWireIns();
-
-    if (CONVERTStopWireUpdate == 0){
-        qCONVERTStopWireUpdate = tr("CONVERT stop");
-    } else {
-        qCONVERTStopWireUpdate = tr("Error! code: %1").arg(CONVERTStopWireUpdate);
-    }
-
-    emit CONVERTStopState(qCONVERTStopWireUpdate);
+    this->UpdateWireIns();
+}
+void RHSAccess::impedanceConvertStop()
+{
+    int epAddr_wi02 = 0x02;
+    int CONVERTStopWireSig = 0x00000000;
+    this->SetWireInValue(epAddr_wi02, CONVERTStopWireSig);
+    this->UpdateWireIns();
 }
 
 void RHSAccess::ReadFromRHSContinuous()
@@ -178,6 +190,7 @@ void RHSAccess::ReadFromRHSContinuous()
 
         auto start = std::chrono::high_resolution_clock::now();
         readStatec = this->ReadFromBlockPipeOut(epAddr_bpoe0, Blocksize, lengthc, rddatabufc, &rdcount);
+        //qDebug() << "readStatec" << readStatec;
 
         if (readStatec == 0)
         {
@@ -204,7 +217,7 @@ void RHSAccess::ReadFromRHSContinuous()
             QByteArray data_seperate = file_chip_0.readAll();
             for (int i = 0; i < (data_seperate.size() / 64); i++) {
                 for (int j = 0; j < 16; j++) {
-                    file_channel[j].write(data_seperate.mid((64 * i+4 * j),4));
+                    file_channel[j].write(data_seperate.mid((64 * i + 4 * j),4));
                 }
             }
             for (int i = 0; i < 16; i++) {

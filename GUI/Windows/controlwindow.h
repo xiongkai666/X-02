@@ -7,6 +7,7 @@
 #include <QProcess>
 #include "rhsaccess.h"
 #include "mwaveview.h"
+#include "systemstate.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ControlWindow; }
@@ -40,8 +41,6 @@ public slots:
 
     void localWaveTime();
 
-    void localImpedanceTime();
-
     void realImpedanceTime();
 
     void localVoltageWaveform();
@@ -50,45 +49,9 @@ public slots:
 
     void realImpedanceWaveform();
 
-    void localImpedanceWaveform();
-
 private slots:
 
-    void on_checkBox_0_stateChanged(int arg1);
-
-    void on_checkBox_1_stateChanged(int arg1);
-
-    void on_checkBox_2_stateChanged(int arg1);
-
-    void on_checkBox_3_stateChanged(int arg1);
-
-    void on_checkBox_4_stateChanged(int arg1);
-
-    void on_checkBox_5_stateChanged(int arg1);
-
-    void on_checkBox_6_stateChanged(int arg1);
-
-    void on_checkBox_7_stateChanged(int arg1);
-
-    void on_checkBox_8_stateChanged(int arg1);
-
-    void on_checkBox_9_stateChanged(int arg1);
-
-    void on_checkBox_10_stateChanged(int arg1);
-
-    void on_checkBox_11_stateChanged(int arg1);
-
-    void on_checkBox_12_stateChanged(int arg1);
-
-    void on_checkBox_13_stateChanged(int arg1);
-
-    void on_checkBox_14_stateChanged(int arg1);
-
-    void on_checkBox_15_stateChanged(int arg1);
-
     void openWaveFile();
-
-    void openImpedanceFile();
 
     void startGraphAndTimer();
 
@@ -98,47 +61,11 @@ private slots:
 
     void stopRealGraphAndTimer();
 
-    void on_localimpedance_start_clicked();
-
-    void on_realimpedance_start_clicked();
-
-    void on_realimpedance_pause_clicked();
-
-    void on_localimpedance_pause_clicked();
-
-    void on_checkBox_16_stateChanged(int arg1);
-
-    void on_checkBox_17_stateChanged(int arg1);
-
-    void on_checkBox_18_stateChanged(int arg1);
-
-    void on_checkBox_19_stateChanged(int arg1);
-
-    void on_checkBox_20_stateChanged(int arg1);
-
-    void on_checkBox_21_stateChanged(int arg1);
-
-    void on_checkBox_22_stateChanged(int arg1);
-
-    void on_checkBox_23_stateChanged(int arg1);
-
-    void on_checkBox_24_stateChanged(int arg1);
-
-    void on_checkBox_25_stateChanged(int arg1);
-
-    void on_checkBox_26_stateChanged(int arg1);
-
-    void on_checkBox_27_stateChanged(int arg1);
-
-    void on_checkBox_28_stateChanged(int arg1);
-
-    void on_checkBox_29_stateChanged(int arg1);
-
-    void on_checkBox_30_stateChanged(int arg1);
-
-    void on_checkBox_31_stateChanged(int arg1);
-
     void on_widthSlider_sliderMoved(int position);
+
+    void on_realImpedanceStart_clicked();
+
+    void on_realImpedanceStop_clicked();
 
 private:
     Ui::ControlWindow *ui;
@@ -148,10 +75,12 @@ private:
     QString RHSCMD_UMDH1;QString RHSCMD_UMDH2;QString RHSCMD_UMDH3;QString RHSCMD_UMDH4;
     QString RHSCMD_WRUMDH1;QString RHSCMD_WRUMDH2;QString RHSCMD_WRUMDH3;QString RHSCMD_WRUMDH4;
     QString M;QString D;
+
     RHSAccess ra;
+    SystemState state;
+
     QTimer*  localWaveGetTimer;
     QTimer*  realWaveGetTimer;
-    QTimer*  localImpedanceGetTimer;
     QTimer*  realImpedanceGetTimer;
     MWaveView *wave;
     MWaveView *impedance;
@@ -159,10 +88,8 @@ private:
     QVector<QVector<QPointF>> coordinatesArray;
     QList<QPointF> localWavePiontList[16];
     QList<QPointF> realWavePiontList[16];
-    QList<QPointF> localImpedancePiontList[16];
     QList<QPointF> realImpedancePiontList[16];
     QChartView *wave_charts[16];
-    double maxVoltage[16];
     double electrodeImpedance[16];
 
     int deviceState = 0;
@@ -170,8 +97,6 @@ private:
     QByteArray localFileWaveData;
     QByteArray localWaveData;
     QByteArray realWaveData;
-    QByteArray localFileImpedanceData;
-    QByteArray localImpedanceData;
     QByteArray realImpedanceData;
 
     QAction *runAction;

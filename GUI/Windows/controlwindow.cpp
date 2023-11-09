@@ -1,6 +1,5 @@
 #include <QThread>
 #include <QDebug>
-#include <QMessageBox>
 #include <QString>
 #include <QtEndian>
 #include <algorithm>
@@ -16,22 +15,9 @@ ControlWindow::ControlWindow(QWidget *parent)
     , ui(new Ui::ControlWindow)
 {
     ui->setupUi(this);
-
-    //初始化和修复设备
-    QString qID;
-    bool isSerialOpened;
-    int DeviceCount;
-    ra.InitializeXMS6302(DeviceCount,qID,isSerialOpened);
-    if(qID.isEmpty() && !isSerialOpened) {
-        QMessageBox::information(NULL, "提示", "未连接设备，只能使用本地功能","继续");
-        deviceState = 01;
-    } else {
-        QMessageBox::information(NULL, "提示", "成功连接设备，可以使用在线功能","继续");
-        deviceState = 02;
-    }
+    state.updateDeviceState(deviceState);
     ra.setFPGAbit();
     ra.ResetFPGA();
-    ra.InitializeRHS2116();
     ra.InitializeRHS2116();
     ra.DebugFPGA();
 
@@ -44,12 +30,12 @@ ControlWindow::ControlWindow(QWidget *parent)
     openFileAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_O));
     connect(openFileAction, SIGNAL(triggered()), this, SLOT(openWaveFile()));
     fileMenu->addAction(openFileAction);
-
+    /*
     QAction *openimpedanceFileAction = new QAction(tr("打开阻抗文件\tCTRL+I"), this);
     connect(openimpedanceFileAction, SIGNAL(triggered()), this, SLOT(openImpedanceFile()));
     openimpedanceFileAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
     fileMenu->addAction(openimpedanceFileAction);
-
+    */
     QAction *newFileAction = new QAction(tr("新建\tCTRL+N"), this);
     newFileAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_N));
     fileMenu->addAction(newFileAction);
@@ -105,25 +91,25 @@ ControlWindow::ControlWindow(QWidget *parent)
 
     //开始键
     runAction = new QAction(QIcon(":/images/runicon.png"), tr("Run"), this);
-    if(deviceState == 01){
+    if(deviceState == 1){
         connect(runAction, SIGNAL(triggered()), this, SLOT(startGraphAndTimer()));
     }
-    if(deviceState == 02){
-        connect(runAction, SIGNAL(triggered()), &ra, SLOT(CONVERTStart()));
+    if(deviceState == 2){
+        connect(runAction, SIGNAL(triggered()), &ra, SLOT(convertStart()));
         connect(runAction, SIGNAL(triggered()), this, SLOT(StartSubThread_ReadRHS()));
     }
     toolbar->addAction(runAction);
 
     //暂停键
     stopAction = new QAction(QIcon(":/images/stopicon.png"), tr("Stop"), this);
-    if(deviceState == 01){
+    if(deviceState == 1){
         connect(stopAction, SIGNAL(triggered()), this, SLOT(stopGraphAndTimer()));
     }
-    if(deviceState == 02){
-        connect(stopAction, SIGNAL(triggered()), this, SLOT(StopSubThread_ReadRHS()));
+    if(deviceState == 2){
+        //connect(stopAction, SIGNAL(triggered()), this, SLOT(StopSubThread_ReadRHS()));
         connect(stopAction, SIGNAL(triggered()), &ra, SLOT(StopReading()));
         connect(stopAction, SIGNAL(triggered()), this, SLOT(stopRealGraphAndTimer()));
-        connect(stopAction, SIGNAL(triggered()), &ra, SLOT(CONVERTStop()));
+        connect(stopAction, SIGNAL(triggered()), &ra, SLOT(convertStop()));
     }
 
     stopAction->setEnabled(false);
@@ -163,11 +149,12 @@ ControlWindow::ControlWindow(QWidget *parent)
     //创建tab页面
     ui->tabWidget->setCurrentIndex(0);
     wave = new MWaveView(ui->waveForm);
-    int newWaveX = ui->waveForm->geometry().left() + 92;
-    int newWaveY = ui->waveForm->geometry().top() -20;
+    int newWaveX = ui->waveForm->geometry().left() + 65;
+    int newWaveY = ui->waveForm->geometry().top() - 20;
     int newWaveWidth = ui->waveForm->width() + 400;
     int newWaveHeight = ui->waveForm->height() + 400;
     wave->setGeometry(newWaveX, newWaveY, newWaveWidth, newWaveHeight);
+    //qDebug() << "label_2.width()" << label_2.width();
 
     impedance = new MWaveView(ui->impedanceForm);
     int newImpedanceX = ui->impedanceForm->geometry().left() + 160;
@@ -185,15 +172,12 @@ ControlWindow::ControlWindow(QWidget *parent)
     connect(realWaveGetTimer, SIGNAL(timeout()), this, SLOT(realWaveTime()));
     realWaveGetTimer->stop();
 
-    localImpedanceGetTimer = new QTimer(this);
-    connect(localImpedanceGetTimer, SIGNAL(timeout()), this, SLOT(localImpedanceTime()));
-    localImpedanceGetTimer->stop();
-
     realImpedanceGetTimer = new QTimer(this);
     connect(realImpedanceGetTimer, SIGNAL(timeout()), this, SLOT(realImpedanceTime()));
     realImpedanceGetTimer->stop();
 
     connect(this, SIGNAL(SIGNAL_StopReadContinuous()), &ra, SLOT(StopReading()));
+
 }
 
 
@@ -215,15 +199,13 @@ void ControlWindow::StopSubThread_ReadRHS()
 }
 
 void ControlWindow::realVoltageWaveform(){
-
-    realWaveData = ra.waveFormData.mid(512*2);
     startRealGraphAndTimer();
 }
 void ControlWindow::realWaveTime(){
     static double realWaveY[16];
     static quint32 realWaveX = 0;
     static QPointF realWavePoint;
-    realWaveData = ra.waveFormData.mid(512*2);
+    realWaveData = ra.waveFormData.mid(256);
     for (int i = 0; i < 16; ++i) {
 
         QByteArray qHighRealWaveData = realWaveData.mid(64*realWaveX+4*i+0,1);
@@ -275,10 +257,7 @@ void ControlWindow::openWaveFile()
 
 void ControlWindow::localVoltageWaveform(){
 
-    localWaveData = localFileWaveData;
-    for(int i = 0; i < localFileWaveData.size(); i+= 1024){
-        localWaveData.append(localFileWaveData.mid(i,512));
-    }
+    localWaveData = localFileWaveData.mid(256);
 }
 
 void ControlWindow::localWaveTime(){
@@ -324,166 +303,6 @@ void ControlWindow::localWaveTime(){
     coordinatesArray.append(vectorXY);
     localWaveX++;
 }
-void ControlWindow::on_checkBox_0_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH0);
-    }
-    else{
-        wave->closeChannel(WAVE_CH0);
-    }
-}
-
-
-void ControlWindow::on_checkBox_1_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH1);
-    }
-    else{
-        wave->closeChannel(WAVE_CH1);
-    }
-}
-
-void ControlWindow::on_checkBox_2_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH2);
-    }
-    else{
-        wave->closeChannel(WAVE_CH2);
-    }
-}
-
-void ControlWindow::on_checkBox_3_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH3);
-    }
-    else{
-        wave->closeChannel(WAVE_CH3);
-    }
-}
-
-void ControlWindow::on_checkBox_4_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH4);
-    }
-    else{
-        wave->closeChannel(WAVE_CH4);
-    }
-}
-
-void ControlWindow::on_checkBox_5_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH5);
-    }
-    else{
-        wave->closeChannel(WAVE_CH5);
-    }
-}
-
-void ControlWindow::on_checkBox_6_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH6);
-    }
-    else{
-        wave->closeChannel(WAVE_CH6);
-    }
-}
-
-void ControlWindow::on_checkBox_7_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH7);
-    }
-    else{
-        wave->closeChannel(WAVE_CH7);
-    }
-}
-
-void ControlWindow::on_checkBox_8_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH8);
-    }
-    else{
-        wave->closeChannel(WAVE_CH8);
-    }
-}
-
-void ControlWindow::on_checkBox_9_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH9);
-    }
-    else{
-        wave->closeChannel(WAVE_CH9);
-    }
-}
-
-void ControlWindow::on_checkBox_10_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH10);
-    }
-    else{
-        wave->closeChannel(WAVE_CH10);
-    }
-}
-
-void ControlWindow::on_checkBox_11_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH11);
-    }
-    else{
-        wave->closeChannel(WAVE_CH11);
-    }
-}
-
-void ControlWindow::on_checkBox_12_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH12);
-    }
-    else{
-        wave->closeChannel(WAVE_CH12);
-    }
-}
-
-void ControlWindow::on_checkBox_13_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH13);
-    }
-    else{
-        wave->closeChannel(WAVE_CH13);
-    }
-}
-
-void ControlWindow::on_checkBox_14_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH14);
-    }
-    else{
-        wave->closeChannel(WAVE_CH14);
-    }
-}
-
-void ControlWindow::on_checkBox_15_stateChanged(int arg1)
-{
-    if(arg1){
-        wave->openChannel(WAVE_CH15);
-    }
-    else{
-        wave->closeChannel(WAVE_CH15);
-    }
-}
 
 void ControlWindow::startGraphAndTimer()
 {
@@ -506,7 +325,7 @@ void ControlWindow::stopGraphAndTimer()
 void ControlWindow::startRealGraphAndTimer()
 {
     wave->startGraph();
-    realWaveGetTimer->start(50);
+    realWaveGetTimer->start(20);
     runAction->setEnabled(false);
     stopAction->setEnabled(true);
 }
@@ -520,21 +339,27 @@ void ControlWindow::stopRealGraphAndTimer()
     stopAction->setEnabled(false);
 }
 
+void ControlWindow::on_realImpedanceStart_clicked()
+{
+    ra.impedanceConvertStart();
+    RHSAccessSubThread* readImpedanceThread = new RHSAccessSubThread(&ra);
+    readImpedanceThread->start();
+    emit realImpedanceWaveform();
+}
 
 void ControlWindow::realImpedanceWaveform(){
 
-    realImpedanceData = ra.waveFormData;
-    realImpedanceGetTimer->start(1);
-
+    realImpedanceGetTimer->start(50);
+    impedance->startGraph();
 }
 
 void ControlWindow::realImpedanceTime(){
     static double realImpedanceY[16];
     static quint32 realImpedanceX = 0;
-    static QPointF realImpedancePoint;
+    static double maxVoltage[16] = {0.0};
 
     for (int i = 0; i < 16; ++i) {
-
+        realImpedanceData = ra.waveFormData.mid(256);
         QByteArray qHighRealImpedanceData = realImpedanceData.mid(64*realImpedanceX+4*i+0,1);
         QByteArray qLowRealImpedanceData = realImpedanceData.mid(64*realImpedanceX+4*i+1,1);
 
@@ -545,272 +370,24 @@ void ControlWindow::realImpedanceTime(){
         totalRealImpedanceData = highRealImpedanceData * 256 + lowRealImpedanceData;
 
         realImpedanceY[i] = 0.195 * (totalRealImpedanceData - 32768)/1000.0;
-        realImpedanceY[i] += 20 * i;
+        //realImpedanceY[i] = (realImpedanceY[i]>0?realImpedanceY[i]:-realImpedanceY[i]);
+        qDebug() << "realImpedanceY[i]" << realImpedanceY[i];
+        maxVoltage[i] = std::max(maxVoltage[i],realImpedanceY[i]);
 
-        realImpedancePoint.setY(realImpedanceY[i]);
-        realImpedancePoint.setX(realImpedanceX);
-        this->realImpedancePiontList[i].append(realImpedancePoint);
-
-        if (this->realImpedancePiontList[i].size() > 200000)
-        {
-           this->realImpedancePiontList[i].removeFirst();
+        QLabel *label = findChild<QLabel*>("label_" + QString::number(i+16));
+        if(label) {
+            label->setText("I-" + QString::number(i) +"\t"+ QString::number(maxVoltage[i], 'f', 1) + "MΩ");
         }
-
-        impedance->addSeriesData((IMPEDANCE_CH)i,this->realImpedancePiontList[i]);
-
     }
     realImpedanceX++;
 }
-void ControlWindow::openImpedanceFile()
+
+void ControlWindow::on_realImpedanceStop_clicked()
 {
-    QString impendaceFilePath = QFileDialog::getOpenFileName(this, "选择文件", "", "文本文件 (*.bin);;所有文件 (*)");
-
-    if (!impendaceFilePath.isEmpty()) {
-        QFile impedanceFile(impendaceFilePath);
-        if (impedanceFile.open(QIODevice::ReadOnly | QIODevice::Truncate)) {
-            localFileImpedanceData= impedanceFile.readAll();
-            impedanceFile.close();
-        } else {
-            qDebug() << "无法打开文件：" << impedanceFile.errorString();
-        }
-    } else {
-        qDebug() << "未选择任何文件";
-    }
-    localImpedanceWaveform();
-}
-
-void ControlWindow::localImpedanceWaveform(){
-
-    localImpedanceData = localFileImpedanceData.mid(1024,8192);
-}
-void ControlWindow::localImpedanceTime(){
-
-    static double localImpedanceY[16];
-    static quint32 localImpedanceX = 0;
-    static QPointF localImpedancePoint;
-
-    for (int i = 0; i < 16; ++i) {
-        if(64*localImpedanceX + 4*i + 4 < 7168){
-            QByteArray qHighLocalImpedanceData  = localImpedanceData.mid(64*localImpedanceX + 4*i + 0,1);
-            QByteArray qLowLocalImpedanceData  = localImpedanceData.mid(64*localImpedanceX + 4*i + 1,1);
-
-            int highLocalImpedanceData = qHighLocalImpedanceData.toHex().toInt(nullptr, 16);
-            int lowLocalImpedanceData = qLowLocalImpedanceData.toHex().toInt(nullptr, 16);
-
-            int totalLocalImpedanceData;
-            totalLocalImpedanceData= highLocalImpedanceData * 256 + lowLocalImpedanceData;
-
-            localImpedanceY[i] = 0.195 * (totalLocalImpedanceData - 32768)/1000.0;
-
-            maxVoltage[i] = std::max(maxVoltage[i],localImpedanceY[i]);
-
-            QCheckBox *checkBox = findChild<QCheckBox*>("checkBox_" + QString::number(i+16));
-            if(checkBox) {
-                checkBox->setText("I-" + QString::number(i) +"\t\t"+ QString::number(maxVoltage[i], 'f', 1) + "MΩ");
-            }
-
-            localImpedanceY[i] += 20 * i;
-
-            localImpedancePoint.setY(localImpedanceY[i]);
-            localImpedancePoint.setX(localImpedanceX);
-            this->localImpedancePiontList[i].append(localImpedancePoint);
-
-            if (this->localImpedancePiontList[i].size() > 200000)
-            {
-               this->localImpedancePiontList[i].removeFirst();
-            }
-
-            impedance->addSeriesData((IMPEDANCE_CH)i,this->localImpedancePiontList[i]);
-        }else{
-            localImpedanceGetTimer->stop();
-        }
-
-    }
-    localImpedanceX++;
-}
-void ControlWindow::on_checkBox_16_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH0);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH0);
-    }
-}
-
-
-void ControlWindow::on_checkBox_17_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH1);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH1);
-    }
-}
-
-void ControlWindow::on_checkBox_18_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH2);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH2);
-    }
-}
-
-void ControlWindow::on_checkBox_19_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH3);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH3);
-    }
-}
-
-void ControlWindow::on_checkBox_20_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH4);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH4);
-    }
-}
-
-void ControlWindow::on_checkBox_21_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH5);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH5);
-    }
-}
-
-void ControlWindow::on_checkBox_22_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH6);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH6);
-    }
-}
-
-void ControlWindow::on_checkBox_23_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH7);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH7);
-    }
-}
-
-void ControlWindow::on_checkBox_24_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH8);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH8);
-    }
-}
-
-void ControlWindow::on_checkBox_25_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH9);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH9);
-    }
-}
-
-void ControlWindow::on_checkBox_26_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH10);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH10);
-    }
-}
-
-void ControlWindow::on_checkBox_27_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH11);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH11);
-    }
-}
-
-void ControlWindow::on_checkBox_28_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH12);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH12);
-    }
-}
-
-void ControlWindow::on_checkBox_29_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH13);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH13);
-    }
-}
-
-void ControlWindow::on_checkBox_30_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH14);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH14);
-    }
-}
-
-void ControlWindow::on_checkBox_31_stateChanged(int arg1)
-{
-    if(arg1){
-        impedance->openChannel(IMPEDANCE_CH15);
-    }
-    else{
-        impedance->closeChannel(IMPEDANCE_CH15);
-    }
-}
-
-void ControlWindow::on_localimpedance_start_clicked()
-{
-    impedance->startGraph();
-    localImpedanceGetTimer->start(1);
-}
-
-void ControlWindow::on_localimpedance_pause_clicked()
-{
-    impedance->pauseGraph();
-    localImpedanceGetTimer->stop();
-}
-void ControlWindow::on_realimpedance_start_clicked()
-{
-    impedance->startGraph();
-}
-
-void ControlWindow::on_realimpedance_pause_clicked()
-{
-    impedance->pauseGraph();
+    ra.StopReading();
     realImpedanceGetTimer->stop();
+    ra.impedanceConvertStop();
 }
-
 void ControlWindow::on_widthSlider_sliderMoved(int position)
 {
 
@@ -824,3 +401,4 @@ void ControlWindow::on_widthSlider_sliderMoved(int position)
     last_position = position;
 
 }
+
