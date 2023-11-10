@@ -9,17 +9,20 @@
 #include "rhsaccess.h"
 #include "mwaveview.h"
 #include "csvfilesave.h"
+#include "systemstate.h"
+
 
 ControlWindow::ControlWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::ControlWindow)
 {
+
     ui->setupUi(this);
     state.updateDeviceState(deviceState);
-    ra.setFPGAbit();
-    ra.ResetFPGA();
-    ra.InitializeRHS2116();
-    ra.DebugFPGA();
+    state.ra.setFPGAbit();
+    state.ra.ResetFPGA();
+    state.ra.InitializeRHS2116();
+    state.ra.DebugFPGA();
 
     //菜单栏-文件菜单项
     QMenuBar *menuBar = new QMenuBar(this);
@@ -91,25 +94,25 @@ ControlWindow::ControlWindow(QWidget *parent)
 
     //开始键
     runAction = new QAction(QIcon(":/images/runicon.png"), tr("Run"), this);
-    if(deviceState == 1){
+    if(deviceState == 01){
         connect(runAction, SIGNAL(triggered()), this, SLOT(startGraphAndTimer()));
     }
-    if(deviceState == 2){
-        connect(runAction, SIGNAL(triggered()), &ra, SLOT(convertStart()));
+    if(deviceState == 02){
+        connect(runAction, SIGNAL(triggered()), &state.ra, SLOT(convertStart()));
         connect(runAction, SIGNAL(triggered()), this, SLOT(StartSubThread_ReadRHS()));
     }
     toolbar->addAction(runAction);
 
     //暂停键
     stopAction = new QAction(QIcon(":/images/stopicon.png"), tr("Stop"), this);
-    if(deviceState == 1){
+    if(deviceState == 01){
         connect(stopAction, SIGNAL(triggered()), this, SLOT(stopGraphAndTimer()));
     }
-    if(deviceState == 2){
+    if(deviceState == 02){
         //connect(stopAction, SIGNAL(triggered()), this, SLOT(StopSubThread_ReadRHS()));
-        connect(stopAction, SIGNAL(triggered()), &ra, SLOT(StopReading()));
+        connect(stopAction, SIGNAL(triggered()), &state.ra, SLOT(StopReading()));
         connect(stopAction, SIGNAL(triggered()), this, SLOT(stopRealGraphAndTimer()));
-        connect(stopAction, SIGNAL(triggered()), &ra, SLOT(convertStop()));
+        connect(stopAction, SIGNAL(triggered()), &state.ra, SLOT(convertStop()));
     }
 
     stopAction->setEnabled(false);
@@ -139,10 +142,10 @@ ControlWindow::ControlWindow(QWidget *parent)
     layout->addWidget(sampleRateComboBox);
     setLayout(layout);
 
-    connect(sampleRateComboBox, QOverload<int>::of(&QComboBox::activated), &ra, [this, sampleRateComboBox]() {
+    connect(sampleRateComboBox, QOverload<int>::of(&QComboBox::activated), &state.ra, [this, sampleRateComboBox]() {
         QVariant sampleValue = sampleRateComboBox->currentData();
         if (sampleValue.isValid()) {
-            ra.SetSampleRate(sampleValue);
+            state.ra.SetSampleRate(sampleValue);
         }
     });
 
@@ -176,7 +179,7 @@ ControlWindow::ControlWindow(QWidget *parent)
     connect(realImpedanceGetTimer, SIGNAL(timeout()), this, SLOT(realImpedanceTime()));
     realImpedanceGetTimer->stop();
 
-    connect(this, SIGNAL(SIGNAL_StopReadContinuous()), &ra, SLOT(StopReading()));
+    connect(this, SIGNAL(SIGNAL_StopReadContinuous()), &state.ra, SLOT(StopReading()));
 
 }
 
@@ -188,7 +191,7 @@ ControlWindow::~ControlWindow()
 
 void ControlWindow::StartSubThread_ReadRHS()
 {
-    RHSAccessSubThread* SubThread_ReadRHSContinuous = new RHSAccessSubThread(&ra);
+    RHSAccessSubThread* SubThread_ReadRHSContinuous = new RHSAccessSubThread(&state.ra);
     SubThread_ReadRHSContinuous->start();
     realVoltageWaveform();
 }
@@ -205,7 +208,7 @@ void ControlWindow::realWaveTime(){
     static double realWaveY[16];
     static quint32 realWaveX = 0;
     static QPointF realWavePoint;
-    realWaveData = ra.waveFormData.mid(256);
+    realWaveData = state.ra.waveFormData.mid(256);
     for (int i = 0; i < 16; ++i) {
 
         QByteArray qHighRealWaveData = realWaveData.mid(64*realWaveX+4*i+0,1);
@@ -341,8 +344,8 @@ void ControlWindow::stopRealGraphAndTimer()
 
 void ControlWindow::on_realImpedanceStart_clicked()
 {
-    ra.impedanceConvertStart();
-    RHSAccessSubThread* readImpedanceThread = new RHSAccessSubThread(&ra);
+    state.ra.impedanceConvertStart();
+    RHSAccessSubThread* readImpedanceThread = new RHSAccessSubThread(&state.ra);
     readImpedanceThread->start();
     emit realImpedanceWaveform();
 }
@@ -359,7 +362,7 @@ void ControlWindow::realImpedanceTime(){
     static double maxVoltage[16] = {0.0};
 
     for (int i = 0; i < 16; ++i) {
-        realImpedanceData = ra.waveFormData.mid(256);
+        realImpedanceData = state.ra.waveFormData.mid(256);
         QByteArray qHighRealImpedanceData = realImpedanceData.mid(64*realImpedanceX+4*i+0,1);
         QByteArray qLowRealImpedanceData = realImpedanceData.mid(64*realImpedanceX+4*i+1,1);
 
@@ -384,9 +387,9 @@ void ControlWindow::realImpedanceTime(){
 
 void ControlWindow::on_realImpedanceStop_clicked()
 {
-    ra.StopReading();
+    state.ra.StopReading();
     realImpedanceGetTimer->stop();
-    ra.impedanceConvertStop();
+    state.ra.impedanceConvertStop();
 }
 void ControlWindow::on_widthSlider_sliderMoved(int position)
 {

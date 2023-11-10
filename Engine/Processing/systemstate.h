@@ -8,7 +8,7 @@ class SystemState
 {
 public:
     void updateDeviceState(int& deviceState);
-    RHSAccess raState;
+    RHSAccess ra;
 };
 
 #endif // SYSTEMSTATE_H

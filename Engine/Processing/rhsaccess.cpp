@@ -32,7 +32,10 @@ void RHSAccess::InitializeXMS6302(int &DeviceCount, QString &qID, bool &isSerial
 
 void RHSAccess::setFPGAbit()
 {
-    this->ConfigureFPGA("../FPGA-bitfiles/test_01.bit");
+    int config;
+    config = this->ConfigureFPGA("../FPGA-bitfiles/32_ch.bit");
+    qDebug() << "config"<<config;
+
 }
 void RHSAccess::ResetFPGA()
 {

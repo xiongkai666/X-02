@@ -76,7 +76,6 @@ private:
     QString RHSCMD_WRUMDH1;QString RHSCMD_WRUMDH2;QString RHSCMD_WRUMDH3;QString RHSCMD_WRUMDH4;
     QString M;QString D;
 
-    RHSAccess ra;
     SystemState state;
 
     QTimer*  localWaveGetTimer;
