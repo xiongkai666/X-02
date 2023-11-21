@@ -30,13 +30,11 @@ void RHSAccess::InitializeXMS6302(int &DeviceCount, QString &qID, bool &isSerial
 
 }
 
-void RHSAccess::setFPGAbit()
+void RHSAccess::setFPGAbit(int &bitConfig)
 {
-    int config;
-    config = this->ConfigureFPGA("../FPGA-bitfiles/32_ch.bit");
-    qDebug() << "config"<<config;
-
+    bitConfig = this->ConfigureFPGA("../FPGA-bitfiles/Pionway6302.bit");
 }
+
 void RHSAccess::ResetFPGA()
 {
 
@@ -134,7 +132,7 @@ void RHSAccess::convertStart()
 void RHSAccess::impedanceConvertStart()
 {
     int epAddr_wi02 = 0x02;
-    int CONVERTStartWireSig = 0x00000001;
+    int CONVERTStartWireSig = 0x80000000;
     int impedanceConvertstate;
     impedanceConvertstate = this->SetWireInValue(epAddr_wi02, CONVERTStartWireSig);
     qDebug() << "impedanceConvertstate" << impedanceConvertstate;
@@ -174,10 +172,12 @@ void RHSAccess::ReadFromRHSContinuous()
     QFile file("../RecordingData/" + folderName + "/Data.bin");
     QFile file_TransCycle_duration("../RecordingData/" + folderName + "/TransCycle_duration_record.bin");
     QFile file_chip_0("../RecordingData/" + folderName + "/Chip_0.bin");
+    QFile file_chip_0_im("../RecordingData/" + folderName + "/Chip_0_im.bin");
 
     file.open(QIODevice::WriteOnly | QIODevice::Truncate);
     file_TransCycle_duration.open(QIODevice::WriteOnly | QIODevice::Truncate);
     file_chip_0.open(QIODevice::WriteOnly | QIODevice::Truncate);
+    file_chip_0_im.open(QIODevice::WriteOnly | QIODevice::Truncate);
 
     for(int i = 0; i < 16; i ++){
         QString filePath = QString("%1/channel_%2.bin").arg("../RecordingData/" + folderName).arg(i);
@@ -193,16 +193,48 @@ void RHSAccess::ReadFromRHSContinuous()
 
         auto start = std::chrono::high_resolution_clock::now();
         readStatec = this->ReadFromBlockPipeOut(epAddr_bpoe0, Blocksize, lengthc, rddatabufc, &rdcount);
-        //qDebug() << "readStatec" << readStatec;
 
         if (readStatec == 0)
         {
             qbrddatabufc = QByteArray((char *)rddatabufc, rddatabufsizec);
             data.append(qbrddatabufc);
 
+            static int count[16][3] = {0};
+            int pf[3] = {0x41,0x49,0x59};
+
             for (int i = 0; i<(rddatabufsizec/32); i ++){
                 waveFormData.append(qbrddatabufc.mid((32*i+0),4));
                 file_chip_0.write(qbrddatabufc.mid((32*i+0),4));
+                QByteArray dataChunk = qbrddatabufc.mid((32 * i + 0), 4);
+                /*
+                for(int j = 0; j < 3; ++j){
+                    if ((static_cast<unsigned char>(dataChunk.at(0)) == 0xFF)
+                    &&(static_cast<unsigned char>(dataChunk.at(1)) == 0xFF)
+                    &&(static_cast<unsigned char>(dataChunk.at(2)) == 00)
+                    &&(static_cast<unsigned char>(dataChunk.at(3)) == pf[j])
+                    && count[j] == 0) {
+                        file_chip_0_im.write(dataChunk);
+                        count[j] = 1;
+                    }
+                }
+                */
+                for(int k = 0x00; k <= 0x0f; ++k){
+                    for(int j = 0; j < 3; ++j){
+                        if ((static_cast<unsigned char>(dataChunk.at(0)) == 0xFF)
+                        &&(static_cast<unsigned char>(dataChunk.at(1)) == 0xFF)
+                        &&(static_cast<unsigned char>(dataChunk.at(2)) == k)
+                        &&(static_cast<unsigned char>(dataChunk.at(3)) == pf[j])
+                        && count[k][j] == 0) {
+                            file_chip_0_im.write(dataChunk);
+                            count[k][j] = 1;
+                        }
+                    }
+                }
+
+                if ((static_cast<unsigned char>(dataChunk.at(0)) != 0xFF)
+                &&(static_cast<unsigned char>(dataChunk.at(1)) != 0xFF)) {
+                       file_chip_0_im.write(dataChunk);
+                }
             }
 
             auto end2 = std::chrono::high_resolution_clock::now();
@@ -216,6 +248,7 @@ void RHSAccess::ReadFromRHSContinuous()
             file.close();
             file_TransCycle_duration.close();
             file_chip_0.close();
+            file_chip_0_im.close();
             file_chip_0.open(QIODevice::ReadOnly);
             QByteArray data_seperate = file_chip_0.readAll();
             for (int i = 0; i < (data_seperate.size() / 64); i++) {

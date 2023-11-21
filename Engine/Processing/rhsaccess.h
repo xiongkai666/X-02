@@ -161,7 +161,7 @@ public slots:
 
     void SetSampleRate(QVariant);
 
-    void setFPGAbit();
+    void setFPGAbit(int &bitConfig);
 
     void ResetFPGA();
 

@@ -8,6 +8,7 @@
 #include "rhsaccess.h"
 #include "mwaveview.h"
 #include "systemstate.h"
+#include "PionwayDLL.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ControlWindow; }

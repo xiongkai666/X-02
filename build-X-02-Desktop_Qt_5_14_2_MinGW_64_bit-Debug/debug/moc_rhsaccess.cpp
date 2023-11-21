@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_RHSAccess_t {
-    QByteArrayData data[23];
-    char stringdata0[297];
+    QByteArrayData data[24];
+    char stringdata0[307];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -46,23 +46,24 @@ QT_MOC_LITERAL(10, 111, 5), // "bool&"
 QT_MOC_LITERAL(11, 117, 14), // "isSerialOpened"
 QT_MOC_LITERAL(12, 132, 13), // "SetSampleRate"
 QT_MOC_LITERAL(13, 146, 10), // "setFPGAbit"
-QT_MOC_LITERAL(14, 157, 9), // "ResetFPGA"
-QT_MOC_LITERAL(15, 167, 17), // "InitializeRHS2116"
-QT_MOC_LITERAL(16, 185, 12), // "convertStart"
-QT_MOC_LITERAL(17, 198, 11), // "convertStop"
-QT_MOC_LITERAL(18, 210, 21), // "impedanceConvertStart"
-QT_MOC_LITERAL(19, 232, 20), // "impedanceConvertStop"
-QT_MOC_LITERAL(20, 253, 21), // "ReadFromRHSContinuous"
-QT_MOC_LITERAL(21, 275, 11), // "StopReading"
-QT_MOC_LITERAL(22, 287, 9) // "DebugFPGA"
+QT_MOC_LITERAL(14, 157, 9), // "bitConfig"
+QT_MOC_LITERAL(15, 167, 9), // "ResetFPGA"
+QT_MOC_LITERAL(16, 177, 17), // "InitializeRHS2116"
+QT_MOC_LITERAL(17, 195, 12), // "convertStart"
+QT_MOC_LITERAL(18, 208, 11), // "convertStop"
+QT_MOC_LITERAL(19, 220, 21), // "impedanceConvertStart"
+QT_MOC_LITERAL(20, 242, 20), // "impedanceConvertStop"
+QT_MOC_LITERAL(21, 263, 21), // "ReadFromRHSContinuous"
+QT_MOC_LITERAL(22, 285, 11), // "StopReading"
+QT_MOC_LITERAL(23, 297, 9) // "DebugFPGA"
 
     },
     "RHSAccess\0ReadRHSData\0\0CONVERTStartState\0"
     "ReadRHSDataContinuous\0InitializeXMS6302\0"
     "int&\0DeviceCount\0QString&\0qID\0bool&\0"
     "isSerialOpened\0SetSampleRate\0setFPGAbit\0"
-    "ResetFPGA\0InitializeRHS2116\0convertStart\0"
-    "convertStop\0impedanceConvertStart\0"
+    "bitConfig\0ResetFPGA\0InitializeRHS2116\0"
+    "convertStart\0convertStop\0impedanceConvertStart\0"
     "impedanceConvertStop\0ReadFromRHSContinuous\0"
     "StopReading\0DebugFPGA"
 };
@@ -89,16 +90,16 @@ static const uint qt_meta_data_RHSAccess[] = {
  // slots: name, argc, parameters, tag, flags
        5,    3,   98,    2, 0x0a /* Public */,
       12,    1,  105,    2, 0x0a /* Public */,
-      13,    0,  108,    2, 0x0a /* Public */,
-      14,    0,  109,    2, 0x0a /* Public */,
-      15,    0,  110,    2, 0x0a /* Public */,
-      16,    0,  111,    2, 0x0a /* Public */,
-      17,    0,  112,    2, 0x0a /* Public */,
-      18,    0,  113,    2, 0x0a /* Public */,
-      19,    0,  114,    2, 0x0a /* Public */,
-      20,    0,  115,    2, 0x0a /* Public */,
-      21,    0,  116,    2, 0x0a /* Public */,
-      22,    0,  117,    2, 0x0a /* Public */,
+      13,    1,  108,    2, 0x0a /* Public */,
+      15,    0,  111,    2, 0x0a /* Public */,
+      16,    0,  112,    2, 0x0a /* Public */,
+      17,    0,  113,    2, 0x0a /* Public */,
+      18,    0,  114,    2, 0x0a /* Public */,
+      19,    0,  115,    2, 0x0a /* Public */,
+      20,    0,  116,    2, 0x0a /* Public */,
+      21,    0,  117,    2, 0x0a /* Public */,
+      22,    0,  118,    2, 0x0a /* Public */,
+      23,    0,  119,    2, 0x0a /* Public */,
 
  // signals: parameters
     QMetaType::Void, QMetaType::QString,    2,
@@ -108,7 +109,7 @@ static const uint qt_meta_data_RHSAccess[] = {
  // slots: parameters
     QMetaType::Void, 0x80000000 | 6, 0x80000000 | 8, 0x80000000 | 10,    7,    9,   11,
     QMetaType::Void, QMetaType::QVariant,    2,
-    QMetaType::Void,
+    QMetaType::Void, 0x80000000 | 6,   14,
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
@@ -133,7 +134,7 @@ void RHSAccess::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, v
         case 2: _t->ReadRHSDataContinuous((*reinterpret_cast< QString(*)>(_a[1]))); break;
         case 3: _t->InitializeXMS6302((*reinterpret_cast< int(*)>(_a[1])),(*reinterpret_cast< QString(*)>(_a[2])),(*reinterpret_cast< bool(*)>(_a[3]))); break;
         case 4: _t->SetSampleRate((*reinterpret_cast< QVariant(*)>(_a[1]))); break;
-        case 5: _t->setFPGAbit(); break;
+        case 5: _t->setFPGAbit((*reinterpret_cast< int(*)>(_a[1]))); break;
         case 6: _t->ResetFPGA(); break;
         case 7: _t->InitializeRHS2116(); break;
         case 8: _t->convertStart(); break;

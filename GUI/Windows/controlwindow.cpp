@@ -3,6 +3,7 @@
 #include <QString>
 #include <QtEndian>
 #include <algorithm>
+#include <cstdlib>
 #include "controlwindow.h"
 #include "ui_controlwindow.h"
 #include "rhsaccesssubthread.h"
@@ -19,7 +20,6 @@ ControlWindow::ControlWindow(QWidget *parent)
 
     ui->setupUi(this);
     state.updateDeviceState(deviceState);
-    state.ra.setFPGAbit();
     state.ra.ResetFPGA();
     state.ra.InitializeRHS2116();
     state.ra.DebugFPGA();
@@ -360,9 +360,9 @@ void ControlWindow::realImpedanceTime(){
     static double realImpedanceY[16];
     static quint32 realImpedanceX = 0;
     static double maxVoltage[16] = {0.0};
-
+    realImpedanceData = state.ra.waveFormData.mid(256);
     for (int i = 0; i < 16; ++i) {
-        realImpedanceData = state.ra.waveFormData.mid(256);
+
         QByteArray qHighRealImpedanceData = realImpedanceData.mid(64*realImpedanceX+4*i+0,1);
         QByteArray qLowRealImpedanceData = realImpedanceData.mid(64*realImpedanceX+4*i+1,1);
 
@@ -371,11 +371,13 @@ void ControlWindow::realImpedanceTime(){
 
         int totalRealImpedanceData;
         totalRealImpedanceData = highRealImpedanceData * 256 + lowRealImpedanceData;
-
+        if(totalRealImpedanceData == 65535){
+            totalRealImpedanceData = 0;
+        }
         realImpedanceY[i] = 0.195 * (totalRealImpedanceData - 32768)/1000.0;
         //realImpedanceY[i] = (realImpedanceY[i]>0?realImpedanceY[i]:-realImpedanceY[i]);
         qDebug() << "realImpedanceY[i]" << realImpedanceY[i];
-        maxVoltage[i] = std::max(maxVoltage[i],realImpedanceY[i]);
+        maxVoltage[i] = std::max(maxVoltage[i],realImpedanceY[i]) ;
 
         QLabel *label = findChild<QLabel*>("label_" + QString::number(i+16));
         if(label) {
@@ -384,6 +386,7 @@ void ControlWindow::realImpedanceTime(){
     }
     realImpedanceX++;
 }
+
 
 void ControlWindow::on_realImpedanceStop_clicked()
 {
