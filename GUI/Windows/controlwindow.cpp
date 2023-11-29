@@ -4,6 +4,7 @@
 #include <QtEndian>
 #include <algorithm>
 #include <cstdlib>
+#include <QRandomGenerator>
 #include "controlwindow.h"
 #include "ui_controlwindow.h"
 #include "rhsaccesssubthread.h"
@@ -20,6 +21,7 @@ ControlWindow::ControlWindow(QWidget *parent)
 
     ui->setupUi(this);
     state.updateDeviceState(deviceState);
+    state.deviceStateinfo(deviceState);
     state.ra.ResetFPGA();
     state.ra.InitializeRHS2116();
     state.ra.DebugFPGA();
@@ -174,10 +176,6 @@ ControlWindow::ControlWindow(QWidget *parent)
     realWaveGetTimer = new QTimer(this);
     connect(realWaveGetTimer, SIGNAL(timeout()), this, SLOT(realWaveTime()));
     realWaveGetTimer->stop();
-
-    realImpedanceGetTimer = new QTimer(this);
-    connect(realImpedanceGetTimer, SIGNAL(timeout()), this, SLOT(realImpedanceTime()));
-    realImpedanceGetTimer->stop();
 
     connect(this, SIGNAL(SIGNAL_StopReadContinuous()), &state.ra, SLOT(StopReading()));
 
@@ -344,56 +342,211 @@ void ControlWindow::stopRealGraphAndTimer()
 
 void ControlWindow::on_realImpedanceStart_clicked()
 {
-    state.ra.impedanceConvertStart();
-    RHSAccessSubThread* readImpedanceThread = new RHSAccessSubThread(&state.ra);
-    readImpedanceThread->start();
-    emit realImpedanceWaveform();
+    if(deviceState == 01){
+        impedanceread.runDemoImpedanceMeasurement();
+        updateLabels();
+    }
+    if(deviceState == 02){
+
+        state.ra.impedanceConvertStart();
+        RHSAccessSubThread* readImpedanceThread = new RHSAccessSubThread(&state.ra);
+        readImpedanceThread->start();
+        runImpedanceProcess();
+    }
 }
 
-void ControlWindow::realImpedanceWaveform(){
+void ControlWindow::runImpedanceProcess(){
 
-    realImpedanceGetTimer->start(50);
-    impedance->startGraph();
-}
+    int maxProgress = 50;
+    QProgressDialog progress(QObject::tr("正在测量电极阻抗"), QString(), 0, maxProgress);
+    progress.setWindowTitle(QObject::tr("提示"));
+    progress.setMinimumSize(240, 100);
+    progress.setMinimumDuration(0);
+    progress.setModal(true);
+    progress.setValue(0);
+    for (int i = 1; i < 20; ++i) {
+        progress.setValue(3*i);
+        QThread::msleep(1000);
+    }
+    //qDebug()<<"state.ra.impedanceFileData"<< state.ra.impedanceFileData.mid(0,16);
 
-void ControlWindow::realImpedanceTime(){
-    static double realImpedanceY[16];
-    static quint32 realImpedanceX = 0;
-    static double maxVoltage[16] = {0.0};
-    realImpedanceData = state.ra.waveFormData.mid(256);
-    for (int i = 0; i < 16; ++i) {
-
-        QByteArray qHighRealImpedanceData = realImpedanceData.mid(64*realImpedanceX+4*i+0,1);
-        QByteArray qLowRealImpedanceData = realImpedanceData.mid(64*realImpedanceX+4*i+1,1);
-
-        int highRealImpedanceData = qHighRealImpedanceData.toHex().toInt(nullptr, 16);
-        int lowRealImpedanceData = qLowRealImpedanceData.toHex().toInt(nullptr, 16);
-
-        int totalRealImpedanceData;
-        totalRealImpedanceData = highRealImpedanceData * 256 + lowRealImpedanceData;
-        if(totalRealImpedanceData == 65535){
-            totalRealImpedanceData = 0;
-        }
-        realImpedanceY[i] = 0.195 * (totalRealImpedanceData - 32768)/1000.0;
-        //realImpedanceY[i] = (realImpedanceY[i]>0?realImpedanceY[i]:-realImpedanceY[i]);
-        qDebug() << "realImpedanceY[i]" << realImpedanceY[i];
-        maxVoltage[i] = std::max(maxVoltage[i],realImpedanceY[i]) ;
-
-        QLabel *label = findChild<QLabel*>("label_" + QString::number(i+16));
-        if(label) {
-            label->setText("I-" + QString::number(i) +"\t"+ QString::number(maxVoltage[i], 'f', 1) + "MΩ");
+    int index = 0;
+    for(int i = 0; i < 256; i += 4){
+        QByteArray dataChunk = state.ra.impedanceFileData.mid(i,4);
+        if((static_cast<unsigned char>(dataChunk.at(0)) == 0xff)
+        &&(static_cast<unsigned char>(dataChunk.at(1)) == 0xff)
+        &&(static_cast<unsigned char>(dataChunk.at(2)) == 0xc0)
+        &&(static_cast<unsigned char>(dataChunk.at(3)) == 0x41)){
+            break;
+        }else{
+            index ++;
         }
     }
-    realImpedanceX++;
+    QByteArray impedanceData = state.ra.impedanceFileData.mid(4*index);
+
+    qDebug()<<"impedanceData"<< impedanceData.mid(0,16);
+
+    vector<QByteArray> channelImpedanceStream(16);
+    int loop = 50;
+    for(int i = 0 ; i < 16; i++){
+        channelImpedanceStream[i] = impedanceData.mid(40 * 512 * 4 + i * loop * 512 * 4 + 4 * i + 4, 512 * 4);
+    }
+
+    vector<double>peakVoltage(16,0.0);
+    vector<double>actualImpedance(16,0.0);
+    double currentVoltage = 0;
+    for(int i = 0; i < 16; ++i){
+        for(int j = 0; j < 512 * 4; j += 4){
+            QByteArray channelImpedanceData = channelImpedanceStream[i].mid(j,4);
+            currentVoltage = getAmplifierData(channelImpedanceData);
+            currentVoltage = (currentVoltage < 0)?(0-currentVoltage):currentVoltage;
+            qDebug()<<"currentVoltage"<<currentVoltage;
+            peakVoltage[i] = max(currentVoltage,peakVoltage[i]);
+
+        }
+        actualImpedance[i] = peakVoltage[i] / (0.38 * 0.3);
+    }
+    for(int i = 0; i < 16; ++i){
+        actualImpedance[i] = 1.1 * actualImpedance[i];//RHS芯片被低估
+    }
+    qDebug() << "actualImpedance[15]" << actualImpedance[15];
+
+    updateCurrentLabels(actualImpedance);
+
+    /*
+    vector<vector<int>> channel(512,16);
+    int pf[3] = {1,10,100};//100fF
+    vector<vector<vector<ComplexPolar> > > measuredImpedance;
+    for (int capRange = 0; capRange < 3; ++capRange){
+        for (int channel = 0; channel < 16; ++channel){
+            for (int stream = 0; stream < 4 * 128; ++stream){
+                QByteArray impedanceByte = impedanceData.mid(capRange * channel * 512 * 10 + 4,4);
+                measuredImpedance[stream][channel][capRange] = ;
+            }
+        }
+    }
+    */
+
+    progress.setValue(maxProgress);
 }
-
-
-void ControlWindow::on_realImpedanceStop_clicked()
+/*
+double ControlWindow::approximateSaturationVoltage(double actualZFreq, double highCutoff)
 {
-    state.ra.StopReading();
-    realImpedanceGetTimer->stop();
-    state.ra.impedanceConvertStop();
+    if (actualZFreq < 0.2 * highCutoff) {
+        return 5000.0;
+    } else {
+        return 5000.0 * sqrt(1.0 / (1.0 + pow(3.3333 * actualZFreq / highCutoff, 4.0)));
+    }
 }
+ComplexPolar ControlWindow::factorOutParallelCapacitance(ComplexPolar impedance, double frequency,
+                                                              double parasiticCapacitance)
+{
+    // First, convert from polar coordinates to rectangular coordinates.
+    double measuredR = impedance.magnitude * cos(DegreesToRadians * impedance.phase);
+    double measuredX = impedance.magnitude * sin(DegreesToRadians * impedance.phase);
+
+    double capTerm = TwoPi * frequency * parasiticCapacitance;
+    double xTerm = capTerm * (measuredR * measuredR + measuredX * measuredX);
+    double denominator = capTerm * xTerm + 2.0 * capTerm * measuredX + 1.0;
+    double trueR = measuredR / denominator;
+    double trueX = (measuredX + xTerm) / denominator;
+
+    // Now, convert from rectangular coordinates back to polar coordinates.
+    ComplexPolar result;
+    result.magnitude = sqrt(trueR * trueR + trueX * trueX);
+    result.phase = RadiansToDegrees * atan2(trueX, trueR);
+    return result;
+}
+
+ComplexPolar ControlWindow::measureComplexAmplitude(const deque<double> &dataQueue, int stream, int chipChannel,
+                                                      double sampleRate, double frequency, int numPeriods, QDataStream *outStream) const
+{
+    int samplesPerDataBlock = RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
+    int numBlocks = (int) dataQueue.size();
+
+    vector<double> waveform(samplesPerDataBlock * numBlocks);
+    int index = 0;
+    for (int block = 0; block < numBlocks; ++block) {
+        for (int t = 0; t < samplesPerDataBlock; ++t) {
+            waveform[index++] = 0.195 * (double)(dataQueue[block]->amplifierData(stream, chipChannel, t) - 32768);
+        }
+    }
+    double notchFreq = 50.0;
+    double NotchBandwidth = 10.0;
+    applyNotchFilter(waveform, notchFreq, NotchBandwidth, sampleRate);
+
+    int period = round(sampleRate / frequency);
+    int startIndex = 0;
+    int endIndex = startIndex + numPeriods * period - 1;
+
+    // Move the measurement window to the end of the waveform to ignore start-up transient.
+    while (endIndex < samplesPerDataBlock * numBlocks - period) {
+        startIndex += period;
+        endIndex += period;
+    }
+
+    return amplitudeOfFreqComponent(waveform, startIndex, endIndex, sampleRate, frequency);
+}
+
+void ControlWindow::applyNotchFilter(vector<double> &waveform, double fNotch, double bandwidth, double sampleRate) const
+{
+    double d = exp(-1.0 * Pi * bandwidth / sampleRate);
+    double b = (1.0 + d * d) * cos(TwoPi * fNotch / sampleRate);
+    double b0 = (1.0 + d * d) / 2.0;
+    double b1 = -b;
+    double b2 = b0;
+    double a1 = b1;
+    double a2 = d * d;
+    int length = (int) waveform.size();
+
+    double prevPrevIn = waveform[0];
+    double prevIn = waveform[1];
+    for (int t = 2; t < length; ++t) {
+        double in = waveform[t];
+        waveform[t] = b0 * in + b1 * prevIn + b2 * prevPrevIn - a1 * waveform[t - 1] - a2 * waveform[t - 2];  // Direct Form 1 implementation
+        prevPrevIn = prevIn;
+        prevIn = in;
+    }
+}
+
+ComplexPolar ControlWindow::amplitudeOfFreqComponent(const vector<double> &waveform, int startIndex, int endIndex,
+                                                       double sampleRate, double frequency)
+{
+    const double K = TwoPi * frequency / sampleRate;
+    double meanI = 0.0;
+    double meanQ = 0.0;
+    for (int t = startIndex; t <= endIndex; ++t) {
+        meanI += waveform[t] * cos(K * t);
+        meanQ += waveform[t] * -1.0 * sin(K * t);
+    }
+    double length = (double)(endIndex - startIndex + 1);
+    meanI /= length;
+    meanQ /= length;
+
+    double realComponent = 2.0 * meanI;
+    double imagComponent = 2.0 * meanQ;
+
+    ComplexPolar result;
+    result.magnitude = sqrt(realComponent * realComponent + imagComponent * imagComponent);
+    result.phase = RadiansToDegrees * atan2(imagComponent, realComponent);
+    return result;
+}
+*/
+double ControlWindow:: getAmplifierData(QByteArray amplifierData){
+
+        QByteArray qHighAmplifierData = amplifierData.mid(0,1);
+        QByteArray qLowAmplifierData = amplifierData.mid(1,1);
+
+        int highAmplifierData = qHighAmplifierData.toHex().toInt(nullptr, 16);
+        int lowAmplifierData = qLowAmplifierData.toHex().toInt(nullptr, 16);
+        int realAmplifierData;
+        realAmplifierData = highAmplifierData * 256 + lowAmplifierData;
+
+        double realVoltage = 0.195 * (realAmplifierData - 32768) / 1000;
+
+        return realVoltage;
+}
+
 void ControlWindow::on_widthSlider_sliderMoved(int position)
 {
 
@@ -405,6 +558,26 @@ void ControlWindow::on_widthSlider_sliderMoved(int position)
         wave->ZoomOutY();
     }
     last_position = position;
-
 }
+
+void ControlWindow::updateLabels() {
+    for(int i = 0; i < 16; ++i){
+        QLabel *label = findChild<QLabel*>("label_" + QString::number(i+16));
+        if(label) {
+            double randomValue = QRandomGenerator::global()->bounded(49, 53) / 10.0;
+            label->setText("I-" + QString::number(i) + "\t" + QString::number(randomValue) + " MΩ");
+        }
+    }
+}
+
+void ControlWindow::updateCurrentLabels(vector<double>actualImpedance) {
+    for(int i = 0; i < 16; ++i){
+        QLabel *label = findChild<QLabel*>("label_" + QString::number(i+16));
+        if(label) {
+            qDebug() << "Updating label_" << i+16 << " with value: " << actualImpedance[i] << " MΩ";
+            label->setText("I-" + QString::number(i) + "\t" + QString::number(actualImpedance[i], 'f', 2) + " MΩ");
+        }
+    }
+}
+
 

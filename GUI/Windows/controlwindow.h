@@ -7,8 +7,9 @@
 #include <QProcess>
 #include "rhsaccess.h"
 #include "mwaveview.h"
-#include "systemstate.h"
+//#include "systemstate.h"
 #include "PionwayDLL.h"
+#include "impedancereader.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ControlWindow; }
@@ -21,6 +22,19 @@ class ControlWindow : public QMainWindow
 public:
     ControlWindow(QWidget *parent = nullptr);
     ~ControlWindow();
+    ImpedanceReader impedanceread;
+
+    bool saveImpedances();
+    SystemState imState;
+    /*
+    static double approximateSaturationVoltage(double actualZFreq, double highCutoff);
+    static ComplexPolar factorOutParallelCapacitance(ComplexPolar impedance, double frequency, double parasiticCapacitance);
+    ComplexPolar measureComplexAmplitude(const deque<RHXDataBlock*> &dataQueue, int stream, int chipChannel,
+                                         double sampleRate, double frequency, int numPeriods, QDataStream *outStream = nullptr) const;
+    void applyNotchFilter(vector<double> &waveform, double fNotch, double bandwidth, double sampleRate) const;
+    static ComplexPolar amplitudeOfFreqComponent(const vector<double> &waveform, int startIndex, int endIndex,
+                                                double sampleRate, double frequency);
+    */
 
 signals:
 
@@ -42,13 +56,11 @@ public slots:
 
     void localWaveTime();
 
-    void realImpedanceTime();
+    //void realImpedanceTime();
 
     void localVoltageWaveform();
 
     void realVoltageWaveform();
-
-    void realImpedanceWaveform();
 
 private slots:
 
@@ -66,7 +78,13 @@ private slots:
 
     void on_realImpedanceStart_clicked();
 
-    void on_realImpedanceStop_clicked();
+    void updateLabels();
+
+    void updateCurrentLabels(vector<double>actualImpedance);
+
+    void runImpedanceProcess();
+
+    double getAmplifierData(QByteArray amplifierData);
 
 private:
     Ui::ControlWindow *ui;
@@ -82,6 +100,7 @@ private:
     QTimer*  localWaveGetTimer;
     QTimer*  realWaveGetTimer;
     QTimer*  realImpedanceGetTimer;
+
     MWaveView *wave;
     MWaveView *impedance;
 

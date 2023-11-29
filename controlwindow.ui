@@ -475,10 +475,10 @@
    <widget class="QPushButton" name="realImpedanceStart">
     <property name="geometry">
      <rect>
-      <x>0</x>
-      <y>30</y>
-      <width>112</width>
-      <height>34</height>
+      <x>50</x>
+      <y>10</y>
+      <width>131</width>
+      <height>51</height>
      </rect>
     </property>
     <property name="text">
@@ -509,19 +509,6 @@
     </property>
     <property name="text">
      <string>振  幅</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="realImpedanceStop">
-    <property name="geometry">
-     <rect>
-      <x>120</x>
-      <y>30</y>
-      <width>112</width>
-      <height>34</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>测量结束</string>
     </property>
    </widget>
   </widget>

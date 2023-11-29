@@ -13,7 +13,7 @@ public:
 
     RHSAccess* l_pRHSAccess;
 
-    bool StopFlag;
+    bool stopFlag;
     int DeviceCount;
     std::string ID;
     bool isOpened;

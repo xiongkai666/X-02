@@ -20,7 +20,7 @@ INCLUDEPATH += $$PWD/GUI/Windows/
 
 SOURCES += \
     Engine/Processing/SaveManagers/csvfilesave.cpp \
-    Engine/Processing/XPUInterfaces/impedancereader.cpp \
+    Engine/Processing/impedancereader.cpp \
     Engine/Processing/rhsaccess.cpp \
     Engine/Processing/systemstate.cpp \
     Engine/Threads/rhsaccesssubthread.cpp \
@@ -31,7 +31,7 @@ SOURCES += \
 HEADERS += \
     Engine/API/PionwayDLL.h \
     Engine/Processing/SaveManagers/csvfilesave.h \
-    Engine/Processing/XPUInterfaces/impedancereader.h \
+    Engine/Processing/impedancereader.h \
     Engine/Processing/rhsaccess.h \
     Engine/Processing/systemstate.h \
     Engine/Threads/rhsaccesssubthread.h \
@@ -57,4 +57,3 @@ win32:!win32-g++: PRE_TARGETDEPS += $$PWD/Engine/API/Pionway.lib
 RESOURCES += \
     Resources.qrc
 
-DISTFILES +=

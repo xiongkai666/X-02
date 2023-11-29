@@ -59,10 +59,7 @@ void RHSAccess::InitializeRHS2116()
     {
         qbdatabuf = QByteArray((char *)rhscmd_initialize, sizeof(rhscmd_initialize));
         qsdatabuf = qbdatabuf.toHex();
-        qDebug() << "qsdatabuf"<<qsdatabuf;
         qswriteState.setNum(writeState);
-
-        //emit WriteRHSData(qsdatabuf);
     }
 }
 
@@ -188,7 +185,8 @@ void RHSAccess::ReadFromRHSContinuous()
     QByteArray data;
     QDataStream TransCycle_duration_record(&file_TransCycle_duration);
 
-    StopFlag = false;
+    static int abortFlag = 0;
+
     while (true){
 
         auto start = std::chrono::high_resolution_clock::now();
@@ -202,23 +200,23 @@ void RHSAccess::ReadFromRHSContinuous()
             static int count[16][3] = {0};
             int pf[3] = {0x41,0x49,0x59};
 
-            for (int i = 0; i<(rddatabufsizec/32); i ++){
+            for (int i = 0; i < (rddatabufsizec/32); i ++){
                 waveFormData.append(qbrddatabufc.mid((32*i+0),4));
                 file_chip_0.write(qbrddatabufc.mid((32*i+0),4));
                 QByteArray dataChunk = qbrddatabufc.mid((32 * i + 0), 4);
-                /*
-                for(int j = 0; j < 3; ++j){
-                    if ((static_cast<unsigned char>(dataChunk.at(0)) == 0xFF)
-                    &&(static_cast<unsigned char>(dataChunk.at(1)) == 0xFF)
-                    &&(static_cast<unsigned char>(dataChunk.at(2)) == 00)
-                    &&(static_cast<unsigned char>(dataChunk.at(3)) == pf[j])
-                    && count[j] == 0) {
-                        file_chip_0_im.write(dataChunk);
-                        count[j] = 1;
+
+                if((static_cast<unsigned char>(dataChunk.at(0)) == 0x00)
+                &&(static_cast<unsigned char>(dataChunk.at(1)) == 0x00)
+                &&(static_cast<unsigned char>(dataChunk.at(2)) == 0x54)
+                &&(static_cast<unsigned char>(dataChunk.at(3)) == 0x41)){
+                    if(abortFlag < 3){
+                        abortFlag ++;
+                    }else{
+                        stopFlag = true;
+                        break;
                     }
                 }
-                */
-                for(int k = 0x00; k <= 0x0f; ++k){
+                for(int k = 0xc0; k <= 0xcf; ++k){
                     for(int j = 0; j < 3; ++j){
                         if ((static_cast<unsigned char>(dataChunk.at(0)) == 0xFF)
                         &&(static_cast<unsigned char>(dataChunk.at(1)) == 0xFF)
@@ -242,13 +240,19 @@ void RHSAccess::ReadFromRHSContinuous()
             TransCycle_duration_record << duration2;
         }
 
-        if (StopFlag){
+        if (stopFlag){
             qDebug() <<"总结读取的字节数为"<<data.size();
             file.write(data);
             file.close();
             file_TransCycle_duration.close();
             file_chip_0.close();
+
             file_chip_0_im.close();
+            file_chip_0_im.open(QIODevice::ReadOnly | QIODevice::Truncate);
+            impedanceFileData = file_chip_0_im.readAll();
+            qDebug()<<"impedanceFileData"<<impedanceFileData.mid(52,68);
+            file_chip_0_im.close();
+
             file_chip_0.open(QIODevice::ReadOnly);
             QByteArray data_seperate = file_chip_0.readAll();
             for (int i = 0; i < (data_seperate.size() / 64); i++) {
@@ -260,6 +264,8 @@ void RHSAccess::ReadFromRHSContinuous()
                 file_channel[i].close();
             }
             file_chip_0.close();
+
+            impedanceConvertStop();
             return;
         }
     }
@@ -267,7 +273,7 @@ void RHSAccess::ReadFromRHSContinuous()
 
 void RHSAccess::StopReading()
 {
-    StopFlag = true;
+    stopFlag = true;
 }
 
 void RHSAccess::DebugFPGA()

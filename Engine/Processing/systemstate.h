@@ -8,6 +8,7 @@ class SystemState
 {
 public:
     void updateDeviceState(int& deviceState);
+    void deviceStateinfo(int deviceState);
     RHSAccess ra;
 };
 

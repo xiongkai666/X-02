@@ -16,7 +16,10 @@ public:
 
     QFile file_channel[16];
 
-    bool StopFlag;
+    bool stopFlag = false;
+
+    QByteArray impedanceFileData;
+
     int DeviceCount;
     std::string ID;
     QString qID;
@@ -51,21 +54,6 @@ public:
                    QString RHSCMD_D1, QString RHSCMD_D2,QString RHSCMD_D3,QString RHSCMD_D4,
                    QString RHSCMD_WRUMDH1, QString RHSCMD_WRUMDH2,QString RHSCMD_WRUMDH3,QString RHSCMD_WRUMDH4);
     void QSTring2HEX(QString src, unsigned char* des);
-
-
-    //rhscmd[3]    rhscmd[2]     rhscmd[1]    rhscmd[0]
-    //7-------0    7-------0     7-------0    7-------0
-    //0000 0000    0000 0000     0000 0000    0000 0000
-    //31-------    ---------     ---------    --------0
-    //                  32bit cmd
-    ////////////////////////////////////////////////////
-    //                   EXAMPLE
-    //                  32bit cmd(read 255)
-    //31---------------------------------------------0
-    //1100 0000    1111 1111    0000 0000    0000 0000
-    //7-------0    7-------0    7-------0    7-------0
-    //rhscmd[3]    rhscmd[2]    rhscmd[1]    rhscmd[0]
-    //  c    0       f    f       0    0       0    0
 
     unsigned char rhscmd_initialize[256] =
     {
@@ -180,6 +168,9 @@ public slots:
     void StopReading();
 
     void DebugFPGA();
+
+private:
+
 };
 
 #endif // RHSACCESS_H
