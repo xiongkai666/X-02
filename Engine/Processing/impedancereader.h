@@ -20,7 +20,7 @@ public:
     ImpedanceReader(QObject *parent = nullptr);
 
     void measureImpedances();
-
+    void saveImpedanceData(vector<ComplexPolar> & imdepanceDate);
     void runDemoImpedanceMeasurement();
 
     RHSAccess rhsra;

@@ -2,12 +2,22 @@
 #include <QTextStream>
 #include <QDebug>
 #include <QtGlobal>
+#include <QDateTime>
+#include <QDir>
 #include "csvfilesave.h"
 
-void saveDataToCSV(const QVector<QVector<QPointF>>& coordinatesArray, const QString& filePath) {
-    QFile file(filePath);
+void saveRecordData(const QVector<QVector<QPointF>>& coordinatesArray) {
+    QDateTime currentDateTime = QDateTime::currentDateTime();
+    QString folderName = "coordinate" + currentDateTime.toString("yyyyMMdd_hhmmss");
+    QDir().mkpath("../RecordingData");
+    QDir().mkpath("../RecordingData/" + folderName);
+    QFile file("../RecordingData/" + folderName + "/XY.csv");
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
+        for(int channel = 0; channel < 16; ++channel){
+            out << "V-" << channel <<":" << "X,Y;";
+        }
+        out << "\n";
         for (int i = 0; i < coordinatesArray.size(); ++i) {
             QVector<QPointF> data = coordinatesArray[i];
             for (int j = 0; j < data.size(); ++j) {
@@ -16,10 +26,8 @@ void saveDataToCSV(const QVector<QVector<QPointF>>& coordinatesArray, const QStr
             out << "\n";
         }
         file.close();
-        qDebug() << "Data saved to" << filePath;
-    } else {
-        qDebug() << "Error opening file:" << file.errorString();
     }
 }
+
 
 

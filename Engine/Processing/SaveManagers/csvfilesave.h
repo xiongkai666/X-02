@@ -3,6 +3,6 @@
 
 #include <QPointF>
 
-void saveDataToCSV(const QVector<QVector<QPointF>>& channelData, const QString& filePath);
+void saveRecordData(const QVector<QVector<QPointF>>& channelData);
 
 #endif // XLSFILESAVE_H
