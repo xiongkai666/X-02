@@ -257,7 +257,7 @@ void ControlWindow::localVoltageWaveform(){
 
     localWaveData = localFileWaveData.mid(256);
 }
-
+/*
 void ControlWindow::localWaveTime(){
     static double localWaveY[16];
     static double virtuallocalWaveY[16];
@@ -284,6 +284,45 @@ void ControlWindow::localWaveTime(){
 
         wave->addSeriesData((WAVE_CH)i,this->localWavePiontList[i]);
 
+    }
+    coordinatesArray.append(vectorXY);
+    localWaveX++;
+}
+*/
+void ControlWindow::localWaveTime(){
+    static double localWaveY[16];
+    static double virtuallocalWaveY[16];
+    static quint32 localWaveX = 0;
+    static QPointF localWavePoint;
+    static QPointF virtualLocalWavePoint;
+    QVector<QPointF> vectorXY;
+    if(localWaveX <= 60 * 20){
+        for (int i = 0; i < 16; ++i) {
+            int numPeriod = 100;
+            int period = 20;
+            int headIndex = 4 * i + 4;
+            int perChannelIndex = i * numPeriod * period * 4 + 20 * period * 4;
+            localWaveY[i] = getAmplifierData(localWaveData.mid(headIndex + perChannelIndex + 4 * localWaveX , 4));
+
+            localWavePoint.setY(localWaveY[i]);
+            localWavePoint.setX(localWaveX);
+            vectorXY.append(localWavePoint);
+
+            virtuallocalWaveY[i] = 20 * i + localWaveY[i];
+            virtualLocalWavePoint.setY(virtuallocalWaveY[i]);
+            virtualLocalWavePoint.setX(localWaveX);
+            this->localWavePiontList[i].append(virtualLocalWavePoint);
+
+            if (this->localWavePiontList[i].size() > 200000)
+            {
+               this->localWavePiontList[i].removeFirst();
+            }
+
+            wave->addSeriesData((WAVE_CH)i,this->localWavePiontList[i]);
+
+        }
+    }else{
+        emit stopGraphAndTimer();
     }
     coordinatesArray.append(vectorXY);
     localWaveX++;
@@ -342,15 +381,15 @@ void ControlWindow::on_realImpedanceStart_clicked()
 
 void ControlWindow::runImpedanceProcess(){
 
-    int maxProgress = 50;
+    int maxProgress = 100;
     QProgressDialog progress(QObject::tr("正在测量电极阻抗"), QString(), 0, maxProgress);
     progress.setWindowTitle(QObject::tr("提示"));
     progress.setMinimumSize(240, 100);
     progress.setMinimumDuration(0);
     progress.setModal(true);
     progress.setValue(0);
-    for (int i = 1; i < 20; ++i) {
-        progress.setValue(2*i);
+    for (int i = 1; i < 6; ++i) {
+        progress.setValue(10*i);
         QThread::msleep(1000);
     }
 
@@ -366,49 +405,73 @@ void ControlWindow::runImpedanceProcess(){
             index ++;
         }
     }
+
     QByteArray impedanceData = state.ra.impedanceFileData.mid(4*index);
 
-    vector<QByteArray> channelImpedanceStream(16);
-    int loop = 50;
-    for(int i = 0 ; i < 16; i++){
-        channelImpedanceStream[i] = impedanceData.mid(10 * 512 * 4 + i * loop * 512 * 4 + 4 * i + 4, 512 * 4);
-    }
+    vector<vector<QByteArray>> channelImpedanceStream(3,vector<QByteArray>(16));
 
-    vector<vector<ComplexPolar>> measuredImpedance(16, vector<ComplexPolar>(4 * 512));
+    double actualImpedanceFreq = 1000.0;
+    double sampleRate = 20000.0;
+    int period = sampleRate / actualImpedanceFreq;
+    double relativeFreq = 1 / period;
+    int numPeriod = 100;
 
-    for(int channel = 0; channel < 16; ++ channel){
-        progress.setValue(40 + 2 * channel);
-        for (int stream = 0; stream < 512; ++stream) {
-            measuredImpedance[channel][stream]=
-                    measureComplexAmplitude(channelImpedanceStream[channel],512.0 * 300.0,300.0);
+    for(int capRange = 0; capRange < 3; ++capRange){
+        int capRangeIndex = capRange * 16 * numPeriod * period * 4 + capRange * 64;
+        for(int channel = 0 ; channel < 16; ++channel){
+            int headIndex = 4 * channel + 4;
+            int perChannelIndex = channel * numPeriod * period * 4 + 20 * period * 4;
+            channelImpedanceStream[capRange][channel] = impedanceData.mid(capRangeIndex + perChannelIndex + headIndex, 60 * period * 4);
         }
     }
+
+    vector<vector<ComplexPolar>>measuredImpedance(3,vector<ComplexPolar>(16));
+    for(int capRange = 0; capRange < 3; ++capRange){
+        for(int channel = 0; channel < 16; ++channel){
+            progress.setValue(60 + 2 * channel);
+            measuredImpedance[capRange][channel] = measureComplexAmplitude(channelImpedanceStream[capRange][channel],20000.0,1000.0);
+        }
+    }
+
+    const double DacVoltageAmplitude = 128.0 * (1.225 / 256.0); // 电压幅度
+    double parasiticCapacitance = 15.0e-12;//并联电容
+
+    double actualUpperBandwidth = 20000.0;
+    double saturationVoltage = approximateSaturationVoltage(actualImpedanceFreq,actualUpperBandwidth);
+
     vector <ComplexPolar> perChannelImpedance(16);
-    for(int channel = 0; channel < 16; ++ channel){
-        for (int stream = 0; stream < 512; ++stream) {
-            const double DacVoltageAmplitude = 128.0 * (1.225 / 256.0); // 计算电压
-            double parasiticCapacitance = 15.0e-12;//寄生电容
-            double relativeFreq = 1 / 512.0;
-            double cSeries = 0.1e-12;
-            double actualImpedanceFreq = 300.0;
-            double sampleRate = 300.0 * 512.0;
-            double period = sampleRate / actualImpedanceFreq;
-            double current = TwoPi * actualImpedanceFreq * DacVoltageAmplitude * cSeries;
+    vector<double>cSeries = {0.1e-12,1e-12,1e-11};
 
-            ComplexPolar impedance;
-
-            impedance.magnitude = 1.0e-9 * (measuredImpedance[channel][stream].magnitude / current) *
-                    (18.0 * relativeFreq * relativeFreq + 1.0);
-            impedance.phase = measuredImpedance[channel][stream].phase + (360.0 * (3.0 / period));
-
-            impedance = factorOutParallelCapacitance(impedance, actualImpedanceFreq, parasiticCapacitance);
-            impedance.magnitude = 1.1 * impedance.magnitude;//RHS芯片被低估
-
-            perChannelImpedance[channel] = impedance;
+    for(int channel = 0; channel < 16; ++ channel){        
+        int bestAmplitudeIndex;
+        if (measuredImpedance[2][channel].magnitude < saturationVoltage) {
+            bestAmplitudeIndex = 2;
+        } else if (measuredImpedance[1][channel].magnitude < saturationVoltage) {
+            bestAmplitudeIndex = 1;
+        } else {
+            bestAmplitudeIndex = 0;
         }
-    }
 
-    //double saturationVoltage = approximateSaturationVoltage(actualImpedanceFreq,actualUpperBandwidth);
+        double capRatio = measuredImpedance[1][channel].magnitude / measuredImpedance[2][channel].magnitude;
+        if (capRatio > 0.2) {
+            if (bestAmplitudeIndex == 2) {
+                bestAmplitudeIndex = 1;
+            }
+        }
+
+        double current = TwoPi * actualImpedanceFreq * DacVoltageAmplitude * cSeries[bestAmplitudeIndex];
+
+        ComplexPolar impedance;
+
+        impedance.magnitude = 1.0e-9 * (measuredImpedance[bestAmplitudeIndex][channel].magnitude / current) *
+                (18.0 * relativeFreq * relativeFreq + 1.0);
+        impedance.phase = measuredImpedance[bestAmplitudeIndex][channel].phase + (360.0 * (3.0 / period));
+
+        impedance = factorOutParallelCapacitance(impedance, actualImpedanceFreq, parasiticCapacitance);
+        impedance.magnitude = 1.1 * impedance.magnitude;//RHS芯片被低估
+
+        perChannelImpedance[channel] = impedance;
+    }
 
     ImpedanceReader impedanceReader;
     impedanceReader.saveImpedanceData(perChannelImpedance);
@@ -420,7 +483,7 @@ void ControlWindow::runImpedanceProcess(){
     updateCurrentLabels(actualImpedance);
     progress.setValue(maxProgress);
 }
-/*
+
 double ControlWindow::approximateSaturationVoltage(double actualZFreq, double highCutoff)
 {
     if (actualZFreq < 0.2 * highCutoff) {
@@ -429,7 +492,7 @@ double ControlWindow::approximateSaturationVoltage(double actualZFreq, double hi
         return 5000.0 * sqrt(1.0 / (1.0 + pow(3.3333 * actualZFreq / highCutoff, 4.0)));
     }
 }
-*/
+
 ComplexPolar ControlWindow::factorOutParallelCapacitance(ComplexPolar impedance, double frequency,double parasiticCapacitance)
 {
     // First, convert from polar coordinates to rectangular coordinates.
@@ -451,27 +514,20 @@ ComplexPolar ControlWindow::factorOutParallelCapacitance(ComplexPolar impedance,
 
 ComplexPolar ControlWindow::measureComplexAmplitude(QByteArray & channelStream, double sampleRate, double frequency)
 {
-
-    vector<double> waveform(512);
+    vector<double> waveform(60 * 20);
     int index = 0;
-    for(int i = 0; i < 512 * 4; i += 4){
+    for(int i = 0; i < 60 * 20 * 4; i += 4){
         waveform[index++] = getAmplifierData(channelStream.mid(i,4));
     }
 
-    qDebug() << "waveform" << waveform[512];
     double notchFreq = 50.0;
     double NotchBandwidth = 10.0;
 
     applyNotchFilter(waveform, notchFreq, NotchBandwidth, sampleRate);
 
-    int startIndex = 0;
-    int endIndex = startIndex + 512 - 1;
-
-    auto result = amplitudeOfFreqComponent(waveform, startIndex, endIndex, sampleRate, frequency);
-    qDebug() << "amplitudeOfFreqComponent" << result.magnitude;
-
+    int startIndex = 40 * 20;
+    int endIndex = startIndex + 20 - 1;
     return amplitudeOfFreqComponent(waveform, startIndex, endIndex, sampleRate, frequency);
-
 }
 
 void ControlWindow::applyNotchFilter(vector<double> & waveform, double fNotch, double bandwidth, double sampleRate) const
@@ -548,21 +604,24 @@ void ControlWindow::on_widthSlider_sliderMoved(int position)
 }
 
 void ControlWindow::updateLabels() {
-    for(int i = 0; i < 16; ++i){
-        QLabel *label = findChild<QLabel*>("label_" + QString::number(i+16));
+    for(int channel = 0; channel < 16; ++channel){
+        QLabel *label = findChild<QLabel*>("label_" + QString::number(channel+16));
         if(label) {
             double randomValue = QRandomGenerator::global()->bounded(49, 53) / 10.0;
-            label->setText("I-" + QString::number(i) + "\t" + QString::number(randomValue) + " MΩ");
+            label->setText("I-" + QString::number(channel) + "\t" + QString::number(randomValue) + " MΩ");
         }
     }
 }
 
 void ControlWindow::updateCurrentLabels(vector<double>actualImpedance) {
-    for(int i = 0; i < 16; ++i){
-        QLabel *label = findChild<QLabel*>("label_" + QString::number(i+16));
+    for(int channel = 0; channel < 16; ++channel){
+        QLabel *label = findChild<QLabel*>("label_" + QString::number(channel+16));
         if(label) {
-            qDebug() << "Updating label_" << i+16 << " with value: " << actualImpedance[i] << " MΩ";
-            label->setText("I-" + QString::number(i) + "\t" + QString::number(actualImpedance[i], 'f', 2) + " MΩ");
+            if(actualImpedance[channel] < 1.0){
+                label->setText("I-" + QString::number(channel) + "\t" + QString::number(1000.0 * actualImpedance[channel], 'f', 0) + " kΩ");
+            }else{
+                label->setText("I-" + QString::number(channel) + "\t" + QString::number(actualImpedance[channel], 'f', 2) + " MΩ");
+            }
         }
     }
 }
