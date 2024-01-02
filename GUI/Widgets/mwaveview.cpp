@@ -24,15 +24,14 @@ static QColor chColor[16] = {
     QColor (0, 0, 255),
     QColor (135, 206, 250),
     QColor (255, 192, 203),
-
 };
 
 
 // 构造函数
 MWaveView::MWaveView(QWidget *parent) : QChartView(parent)
 {
-    this->wave_layout = new QBoxLayout(QBoxLayout::LeftToRight,parent);
 
+    this->wave_layout = new QBoxLayout(QBoxLayout::LeftToRight,parent);
     // set Axis------------------
     this->m_wave.axisX = new QValueAxis;
     this->m_wave.axisY = new QValueAxis;
@@ -48,7 +47,7 @@ MWaveView::MWaveView(QWidget *parent) : QChartView(parent)
 
     // set chart-----------------
     this->m_wave.chart = new QChart;
-    this->m_wave.chart->legend()->setVisible(false);       //曲线文本提示
+    this->m_wave.chart->legend()->setVisible(false);
     this->m_wave.chart->setTheme(QChart::ChartThemeLight);
     this->setChart(this->m_wave.chart);
 
@@ -177,7 +176,7 @@ void MWaveView::updateRange()
     maxX = m_wave.last_point_x > m_wave.rangeX? m_wave.last_point_x:m_wave.rangeX;
     minX = maxX - m_wave.rangeX >0 ? maxX - m_wave.rangeX: 0;
 
-    maxY = 310;
+    maxY = 300;
     minY = -10;
 
     this->m_wave.axisX->setRange(minX, maxX);

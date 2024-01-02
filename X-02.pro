@@ -23,6 +23,7 @@ SOURCES += \
     Engine/Processing/impedancereader.cpp \
     Engine/Processing/rhsaccess.cpp \
     Engine/Processing/systemstate.cpp \
+    Engine/Processing/voltagecalculation.cpp \
     Engine/Threads/rhsaccesssubthread.cpp \
     GUI/Widgets/mwaveview.cpp \
     GUI/Windows/controlwindow.cpp \
@@ -34,6 +35,7 @@ HEADERS += \
     Engine/Processing/impedancereader.h \
     Engine/Processing/rhsaccess.h \
     Engine/Processing/systemstate.h \
+    Engine/Processing/voltagecalculation.h \
     Engine/Threads/rhsaccesssubthread.h \
     GUI/Widgets/mwaveview.h \
     GUI/Windows/controlwindow.h \

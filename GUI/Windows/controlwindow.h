@@ -5,11 +5,12 @@
 #include <QtCharts>
 #include <QThread>
 #include <QProcess>
-#include "rhsaccess.h"
+//#include "rhsaccess.h"
 #include "mwaveview.h"
-//#include "systemstate.h"
+#include "systemstate.h"
 #include "PionwayDLL.h"
 #include "impedancereader.h"
+#include "voltagecalculation.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ControlWindow; }
@@ -20,46 +21,27 @@ class ControlWindow : public QMainWindow
     Q_OBJECT
 
 public:
+
     ControlWindow(QWidget *parent = nullptr);
     ~ControlWindow();
-    ImpedanceReader impedanceread;
 
-    bool saveImpedances();
-    SystemState imState;
-    int channel;
-
-    static double approximateSaturationVoltage(double actualZFreq, double highCutoff);
-    ComplexPolar factorOutParallelCapacitance(ComplexPolar impedance, double frequency, double parasiticCapacitance);
-    ComplexPolar measureComplexAmplitude(QByteArray & channelStream, double sampleRate,double frequency);
-    void applyNotchFilter(vector<double> &waveform, double fNotch, double bandwidth, double sampleRate) const;
-    static ComplexPolar amplitudeOfFreqComponent(const vector<double> &waveform, int startIndex, int endIndex,
-                                                double sampleRate, double frequency);
-
+    ImpedanceReader impedanceRead;
+    VoltageCalculation vc;
 
 signals:
 
     void SIGNAL_CONVERTStart_clicked();
-
     void SIGNAL_CONVERTStop_clicked();
-
     void SIGNAL_StopReadContinuous();
-
     void SIGNAL_DebugFPGAButton_clicked();
 
 public slots:
 
     void StartSubThread_ReadRHS();
-
     void StopSubThread_ReadRHS();
-
     void realWaveTime();
-
     void localWaveTime();
-
-    //void realImpedanceTime();
-
     void localVoltageWaveform();
-
     void realVoltageWaveform();
 
 private slots:
@@ -67,24 +49,15 @@ private slots:
     void openWaveFile();
 
     void startGraphAndTimer();
-
     void stopGraphAndTimer();
-
     void startRealGraphAndTimer();
-
     void stopRealGraphAndTimer();
 
-    void on_widthSlider_sliderMoved(int position);
-
-    void on_realImpedanceStart_clicked();
+    void startDemoImpedance();
+    void startMeasureImpedance();
 
     void updateLabels();
-
     void updateCurrentLabels(vector<double>actualImpedance);
-
-    void runImpedanceProcess();
-
-    double getAmplifierData(QByteArray amplifierData);
 
 private:
     Ui::ControlWindow *ui;
@@ -95,14 +68,11 @@ private:
     QString RHSCMD_WRUMDH1;QString RHSCMD_WRUMDH2;QString RHSCMD_WRUMDH3;QString RHSCMD_WRUMDH4;
     QString M;QString D;
 
-    SystemState state;
-
     QTimer*  localWaveGetTimer;
     QTimer*  realWaveGetTimer;
     QTimer*  realImpedanceGetTimer;
 
     MWaveView *wave;
-    MWaveView *impedance;
 
     QVector<QVector<QPointF>> coordinatesArray;
     QList<QPointF> localWavePiontList[16];
@@ -110,8 +80,6 @@ private:
     QList<QPointF> realImpedancePiontList[16];
     QChartView *wave_charts[16];
     double electrodeImpedance[16];
-
-    int deviceState = 0;
 
     QByteArray localFileWaveData;
     QByteArray localWaveData;
@@ -121,12 +89,13 @@ private:
     QAction *runAction;
     QAction *stopAction;
     QAction *rewindAction;
+    QAction *impedanceAction;
+    QAction *runStopAction;
+
+    static bool isRunning;
+
 
 };
 
-const double Pi = 3.14159265359;
-const double TwoPi = 6.28318530718;
-const double DegreesToRadians = 0.0174532925199;
-const double RadiansToDegrees = 57.2957795132;
 #endif // CONTROLWINDOW_H
 

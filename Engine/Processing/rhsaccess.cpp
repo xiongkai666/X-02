@@ -246,11 +246,11 @@ void RHSAccess::ReadFromRHSContinuous()
             file.close();
             file_TransCycle_duration.close();
             file_chip_0.close();
-
             file_chip_0_im.close();
+
             file_chip_0_im.open(QIODevice::ReadOnly | QIODevice::Truncate);
             impedanceFileData = file_chip_0_im.readAll();
-            qDebug()<<"impedanceFileData"<<impedanceFileData.mid(52,68);
+
             file_chip_0_im.close();
 
             file_chip_0.open(QIODevice::ReadOnly);
@@ -270,7 +270,47 @@ void RHSAccess::ReadFromRHSContinuous()
         }
     }
 }
+/*
+bool RHXController::readDataBlocks(int numBlocks, deque<RHXDataBlock*> &dataQueue)
+{
+    lock_guard<mutex> lockOk(okMutex);
 
+    unsigned int numWordsToRead = numBlocks * RHXDataBlock::dataBlockSizeInWords(type, numDataStreams);
+
+    if (numWordsInFifo() < numWordsToRead)
+        return false;
+
+    unsigned int numBytesToRead = BytesPerWord * numWordsToRead;
+
+    if (numBytesToRead > usbBufferSize) {
+        cerr << "Error in RHXController::readDataBlocks: USB buffer size exceeded.  " <<
+                "Increase value of MaxNumBlocksToRead.\n";
+        return false;
+    }
+
+    long result;
+
+    if (type == ControllerRecordUSB3 || is7310) {
+        dev->ReadFromBlockPipeOut(PipeOutData, USB3BlockSize, numBytesToRead, usbBuffer, &result);
+    } else {
+        dev->ReadFromPipeOut(PipeOutData, numBytesToRead, usbBuffer, &result);
+    }
+
+    for (int i = 0; i < numBlocks; ++i) {
+        RHXDataBlock* dataBlock = new RHXDataBlock(type, numDataStreams);
+        dataBlock->fillFromUsbBuffer(usbBuffer, i);
+        dataQueue.push_back(dataBlock);
+    }
+
+    // If something went wrong, flag pipeReadErrorCode for the GUI thread to display an error message and exit the software
+    if (result != numBytesToRead) {
+        cerr << "CRITICAL (readDataBlocks): Pipe read failure.  Check block and buffer sizes.\n";
+        pipeReadErrorCode = result;
+    }
+
+    return true;
+}
+*/
 void RHSAccess::StopReading()
 {
     stopFlag = true;

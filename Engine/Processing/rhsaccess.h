@@ -131,42 +131,27 @@ public:
         0x00,0x00,0xff,0xd0,//READ(255) m=1
     };
 
-
-
 signals:
 
-    //void WriteRHSData(QString);
-
     void ReadRHSData(QString);
-
     void CONVERTStartState(QString);
-
     void ReadRHSDataContinuous(QString);
 
 public slots:
 
     void InitializeXMS6302(int &DeviceCount, QString &qID, bool &isSerialOpened);
-
     void SetSampleRate(QVariant);
-
     void setFPGAbit(int &bitConfig);
-
     void ResetFPGA();
-
     void InitializeRHS2116();
 
     void convertStart();
-
     void convertStop();
-
     void impedanceConvertStart();
-
     void impedanceConvertStop();
 
     void ReadFromRHSContinuous();
-
     void StopReading();
-
     void DebugFPGA();
 
 private:

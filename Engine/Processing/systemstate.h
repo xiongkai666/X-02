@@ -9,7 +9,9 @@ class SystemState
 public:
     void updateDeviceState(int& deviceState);
     void deviceStateinfo(int deviceState);
+    void deviceReset();
     RHSAccess ra;
+
 };
 
 #endif // SYSTEMSTATE_H

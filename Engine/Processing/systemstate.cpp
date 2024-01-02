@@ -27,5 +27,12 @@ void SystemState::deviceStateinfo(int deviceState)
     if(deviceState == 02) {
         QMessageBox::information(NULL, "提示", "成功连接并配置设备，可以使用在线功能","继续");
     }
-
 }
+
+void SystemState::deviceReset()
+{
+    ra.ResetFPGA();
+    ra.InitializeRHS2116();
+    ra.DebugFPGA();
+}
+

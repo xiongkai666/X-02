@@ -37,7 +37,6 @@
         <file>images/status_header.png</file>
         <file>images/stim_enabled_badge.png</file>
         <file>images/stim_enabled_badge_selected.png</file>
-        <file>images/stopicon.png</file>
         <file>images/tcp_badge.png</file>
         <file>images/tcp_badge_selected.png</file>
         <file>images/thumbtackdownicon.png</file>
@@ -47,5 +46,8 @@
         <file>images/uparrow.png</file>
         <file>images/zoomin.png</file>
         <file>images/zoomout.png</file>
+        <file>images/background-image.png</file>
+        <file>images/stopicon.png</file>
+        <file>images/impedance.jpg</file>
     </qresource>
 </RCC>
